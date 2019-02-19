@@ -80,6 +80,8 @@ def numerov(m,h,u0,u1,q,s):
         c0 = 1+g*q[i-1]
         c1 = 2-10*g*q[i]
         c2 = 1+g*q[i+1]
+        # S[] is full of zeros
+        # need to find where the java code inputs non-zero values for s
         d = g*(s[i+1]+s[i-1]+10*s[i])
         u[i+1] = (c1*u[i]-c0*u[i-1]+d)/c2
     return u
