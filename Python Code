@@ -6,6 +6,7 @@ ni = 10
 x1 = -10
 x2 = 10
 h = (x2-x1)/nx
+mh = m*h
 ul = np.zeros(nx+1)
 ur = np.zeros(nx+1)
 ql = np.zeros(nx+1)
@@ -13,8 +14,10 @@ qr = np.zeros(nx+1)
 s = np.zeros(nx+1)
 u = np.zeros(nx+1)
 Del = 1*10**-6
-e = 2.5
+e = 2.4
 de = .1
+x_plot = []
+u_plot = []
 #Carry out secant search
 def secant(n,Del,x,dx):
     k = 0
@@ -28,7 +31,7 @@ def secant(n,Del,x,dx):
         k +=1
     if k ==n:
         print("Convergence not found after ", n, " iterations")
-        return x1
+    return x1
 # Provde the function for the root search
 def f(x):
     (nr,nl,ur,ul) = wave(x)
@@ -44,8 +47,8 @@ def wave(energy):
         x = x1+i*h
         ql[i] = 2*(energy-v(x))
         qr[nx-i] = ql[i]
-    im = 0
     #find the matching point at the right turning point
+    im = 0
     for i in range(0,nx+1):
         if (((ql[i]*ql[i+1])<0) and (ql[i]>0)):
             im = i
@@ -75,14 +78,11 @@ def numerov(m,h,u0,u1,q,s):
     u[0] = u0
     u[1] = u1
     g = h*h/12
-    print("s = ", s)
-    for i in range(0,m-1):
+    for i in range(1,m-1):
         c0 = 1+g*q[i-1]
         c1 = 2-10*g*q[i]
         c2 = 1+g*q[i+1]
-        # S[] is full of zeros
-        # need to find where the java code inputs non-zero values for s
-        d = g*(s[i+1]+s[i-1]+10*s[i])
+        d = g*(s[i+1]+s[i-1]+10*s[i]) # 0
         u[i+1] = (c1*u[i]-c0*u[i-1]+d)/c2
     return u
 # method to achieve the evenly spaced Simpson rule
@@ -104,6 +104,22 @@ def simpson(y,h):
 def v(x):
     alpha = 1
     Lambda = 4
-    return alpha*alpha*Lambda*(Lambda-1)*(.5-1/math.pow(math.cosh(alpha*x),2))/2
+    return alpha*alpha*Lambda*(Lambda-1)*(.5-1/np.power(np.cosh(alpha*x),2))/2
 e = secant(ni,Del,e,de)
 print("the eiganvalue: ", e)
+for i in range(0,nx+1,m):
+    temp = x1+i*mh
+    x_plot = np.append(x_plot,temp)
+    u_plot = np.append(u_plot,u[i])
+np.savetxt('wave.txt', u)
+
+import matplotlib.pyplot as plt
+plt.plot(x_plot, u_plot)
+#plt.show()
+plt.savefig('wave.png')
+plt.close()
+#np.loadtxt
+x = np.linspace(-10, 10, 501)
+np.savetxt('v.txt', np.transpose(np.vstack((x, v(x)))))
+plt.plot(x, v(x))
+plt.savefig('v.png')
