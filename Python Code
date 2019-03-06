@@ -1,125 +1,165 @@
 import numpy as np
 import math
-nx = 500
-m = 10
-ni = 10
-x1 = -10
-x2 = 10
-h = (x2-x1)/nx
-mh = m*h
-ul = np.zeros(nx+1)
-ur = np.zeros(nx+1)
-ql = np.zeros(nx+1)
-qr = np.zeros(nx+1)
-s = np.zeros(nx+1)
-u = np.zeros(nx+1)
-Del = 1*10**-6
-e = 2.4
-de = .1
-x_plot = []
-u_plot = []
-#Carry out secant search
-def secant(n,Del,x,dx):
-    k = 0
-    x1 = x+dx
-    while abs(dx)>Del and k<n:
-        d = f(x1)-f(x)
-        x2 = x1-f(x1)*(x1-x)/d
-        x = x1
-        x1 = x2
-        dx = x1-x
-        k +=1
-    if k ==n:
-        print("Convergence not found after ", n, " iterations")
-    return x1
-# Provde the function for the root search
-def f(x):
-    (nr,nl,ur,ul) = wave(x)
-    f0 = ur[nr-1]+ul[nl-1]-ur[nr-3]-ul[nl-3]
-    return f0/(2*h*ur[nr-2])
-#Calculate the wavefunction
-def wave(energy):
-    y = np.zeros(nx+1)
-    u0 = 0
-    u1 = .01
-    #set up function q(x) in the equation
-    for i in range(0,nx+1):
-        x = x1+i*h
-        ql[i] = 2*(energy-v(x))
-        qr[nx-i] = ql[i]
-    #find the matching point at the right turning point
-    im = 0
-    for i in range(0,nx+1):
-        if (((ql[i]*ql[i+1])<0) and (ql[i]>0)):
-            im = i
-            break
-    #carry out the numerov integrations
-    nl = im+2
-    nr = nx-im+2
-    ul = numerov(nl,h,u0,u1,ql,s)
-    ur = numerov(nr,h,u0,u1,qr,s)
-    ratio = ur[nr-2]/ul[im]
-    for i in range(0,im+1):
-        u[i] = ratio*ul[i]
-        y[i] = u[i]*u[i]
-    ul[nl-1] *=ratio
-    ul[nl-3] *=ratio
-    for i in range(0,nr-1):
-        u[i+im] = ur[nr-i-2]
-        y[i+im] = u[i+im]*u[i+im]
-    sum = simpson(y,h)
-    sum = math.sqrt(sum)
-    for i in range(0,nx+1):
-        u[i] /= sum
-    return nr,nl,ur,ul
-# Method to perform Numerov integration
-def numerov(m,h,u0,u1,q,s):
-    u =np.zeros(m)
-    u[0] = u0
-    u[1] = u1
-    g = h*h/12
-    for i in range(1,m-1):
-        c0 = 1+g*q[i-1]
-        c1 = 2-10*g*q[i]
-        c2 = 1+g*q[i+1]
-        d = g*(s[i+1]+s[i-1]+10*s[i]) # 0
-        u[i+1] = (c1*u[i]-c0*u[i-1]+d)/c2
-    return u
-# method to achieve the evenly spaced Simpson rule
-def simpson(y,h):
-    n = len(y)-1
-    s0 = 0
-    s1 = 0
-    s2 = 0
-    for i in range(1,n,2):
-        s0 +=y[i]
-        s1 +=y[i-1]
-        s2 +=y[i+1]
-    s = (s1+4*s0+s2)/3
-    if (n+1)%2 ==0:
-        return h*(s+(5*y[n]+8*y[n-1]-y[n-2])/12)
-    else:
-        return h*s
-# Method to provide the given potential in the problem
-def v(x):
-    alpha = 1
-    Lambda = 4
-    return alpha*alpha*Lambda*(Lambda-1)*(.5-1/np.power(np.cosh(alpha*x),2))/2
-e = secant(ni,Del,e,de)
-print("the eiganvalue: ", e)
-for i in range(0,nx+1,m):
-    temp = x1+i*mh
-    x_plot = np.append(x_plot,temp)
-    u_plot = np.append(u_plot,u[i])
-np.savetxt('wave.txt', u)
+from optparse import OptionParser
 
-import matplotlib.pyplot as plt
-plt.plot(x_plot, u_plot)
-#plt.show()
-plt.savefig('wave.png')
-plt.close()
-#np.loadtxt
-x = np.linspace(-10, 10, 501)
-np.savetxt('v.txt', np.transpose(np.vstack((x, v(x)))))
-plt.plot(x, v(x))
-plt.savefig('v.png')
+def main():
+    #region Parses command line input
+    usage = "usage: %prog [options] arg"
+    parser = OptionParser(usage)
+    parser.add_option("-f", "--file", dest="filename",
+                      help="read data from FILENAME")
+    parser.add_option("-v", "--verbose",
+                      action="store_true", dest="verbose")
+    parser.add_option("-e", "--eigen", type="float", default=0.0, dest = "eigenvalue",
+                      help = "user inputed eigenvalue")
+    parser.add_option("-s", "--state", type = "int", default = 0, dest = "state",
+                      help = "eigen state")
+    (options, args) = parser.parse_args()
+    if options.filename:
+        with open(options.filename) as textFile:
+            lines = [line.split() for line in textFile]
+    #user inputed eigen value
+    if options.eigenvalue is not None:
+        e_initial = options.eigenvalue
+    if options.state is not None:
+        state = options.state
+    if options.verbose:
+        pass
+    #main body
+    a = np.asarray(lines)
+    a = a.astype(np.float)
+    x = a[:,0]
+    v = a[:,1]
+    nx = 500
+    m = 10
+    ni = 100
+    x1 = x[0]
+    x2 = x[-1]
+    h = (x2-x1)/nx
+    mh = m*h
+    ul = np.zeros(nx+1)
+    ur = np.zeros(nx+1)
+    ql = np.zeros(nx+1)
+    qr = np.zeros(nx+1)
+    s = np.zeros(nx+1)
+    u = np.zeros(nx+1)
+    Del = 1*10**-6
+    de = .1
+    x_plot = []
+    u_plot = []
+    #Carry out secant search
+    def secant(n,Del,x,dx):
+        k = 0
+        x1 = x+dx
+        while abs(dx)>Del and k<n:
+            d = f(x1)-f(x)
+            x2 = x1-f(x1)*(x1-x)/d
+            x = x1
+            x1 = x2
+            dx = x1-x
+            k +=1
+        if k ==n:
+            print("Convergence not found after ", n, " iterations")
+        return x1
+    # Provde the function for the root search
+    def f(x):
+        (nr,nl,ur,ul) = wave(x)
+        f0 = ur[nr-1]+ul[nl-1]-ur[nr-3]-ul[nl-3]
+        return f0/(2*h*ur[nr-2])
+    #Calculate the wavefunction
+    def wave(energy):
+        y = np.zeros(nx+1)
+        u0 = 0
+        u1 = .01
+        #set up function q(x) in the equation
+        for i in range(0,nx+1):
+            ql[i] = 2*(energy-v[i])
+            qr[nx-i] = ql[i]
+        #find the matching point at the right turning point
+        #im = 0
+        im = int(nx/2)
+        for i in range(0,nx+1):
+            if (((ql[i]*ql[i+1])<0) and (ql[i]>0)):
+                im = i
+                break
+        #carry out the numerov integrations
+        nl = im+2
+        nr = nx-im+2
+        ul = numerov(nl,h,u0,u1,ql,s)
+        ur = numerov(nr,h,u0,u1,qr,s)
+        ratio = ur[nr-2]/ul[im]
+        for i in range(0,im+1):
+            u[i] = ratio*ul[i]
+            y[i] = u[i]*u[i]
+        ul[nl-1] *=ratio
+        ul[nl-3] *=ratio
+        for i in range(0,nr-1):
+            u[i+im] = ur[nr-i-2]
+            y[i+im] = u[i+im]*u[i+im]
+        sum = simpson(y,h)
+        sum = math.sqrt(sum)
+        for i in range(0,nx+1):
+            u[i] /= sum
+        return nr,nl,ur,ul
+    # Method to perform Numerov integration
+    def numerov(m,h,u0,u1,q,s):
+        u =np.zeros(m)
+        u[0] = u0
+        u[1] = u1
+        g = h*h/12
+        for i in range(1,m-1):
+            c0 = 1+g*q[i-1]
+            c1 = 2-10*g*q[i]
+            c2 = 1+g*q[i+1]
+            d = g*(s[i+1]+s[i-1]+10*s[i]) # 0
+            u[i+1] = (c1*u[i]-c0*u[i-1]+d)/c2
+        return u
+    # method to achieve the evenly spaced Simpson rule
+    def simpson(y,h):
+        n = len(y)-1
+        s0 = 0
+        s1 = 0
+        s2 = 0
+        for i in range(1,n,2):
+            s0 +=y[i]
+            s1 +=y[i-1]
+            s2 +=y[i+1]
+        s = (s1+4*s0+s2)/3
+        if (n+1)%2 ==0:
+            return h*(s+(5*y[n]+8*y[n-1]-y[n-2])/12)
+        else:
+            return h*s
+    for i in range (0,100):
+        e = secant(ni,Del,e_initial,de)
+        asign = np.sign(u)
+        sz = asign == 0
+        while sz.any():
+            asign[sz] = np.roll(asign, 1)[sz]
+            sz = asign == 0
+        signchange = ((np.roll(asign, 1) - asign) != 0).astype(int)
+        Sum = np.sum(signchange)
+        if Sum != state:
+            e_initial -= .1
+        else:
+            break
+    
+    
+    print("the eigenvalue: ", e)
+    for i in range(0,nx+1,m):
+        temp = x1+i*mh
+        x_plot = np.append(x_plot,temp)
+        u_plot = np.append(u_plot,u[i])
+    np.savetxt('wave.txt', u)
+    
+    import matplotlib.pyplot as plt
+    plt.subplot(2,1,1)
+    plt.plot(x,u)
+    plt.subplot(2,1,2)
+    plt.plot(x, v)
+    plt.savefig('Wave_V.png')
+    
+if __name__ == '__main__':
+    main()
+    
+# force to stay between energy levels
+    
